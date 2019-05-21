@@ -37,12 +37,6 @@ public class ExportController {
     @Autowired
     private  FactureService factureService;
 
-    @Autowired
-    private ClientRepository clientRepository;
-
-    @Autowired
-    private FactureRepository factureRepository;
-
     @GetMapping("/clients/csv")
     public void clientsCSV(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("text/csv");
@@ -115,6 +109,7 @@ public class ExportController {
             for (Facture facture: facturesClient) {
                 Set<LigneFacture> ligneFactures = facture.getLigneFactures();
                 Sheet factureSheet = workbook.createSheet("Facture " + facture.getId());
+                factureSheet.setColumnWidth(15, 20);
                 Row headerRow = factureSheet.createRow(0);
                 headerRow.createCell(0).setCellValue("Article");
                 headerRow.createCell(1).setCellValue("Quantité");
@@ -132,7 +127,7 @@ public class ExportController {
 
             //Ligne de total général de la facture, style gras rouge avec bordure
             Row totalRow = factureSheet.createRow(factureSheet.getLastRowNum()+1);
-            CellStyle totalRowStyle = totalRow.getRowStyle();
+            CellStyle totalRowStyle = workbook.createCellStyle();
             totalRowStyle.setBorderBottom(BorderStyle.MEDIUM);
             totalRowStyle.setBorderRight(BorderStyle.MEDIUM);
             totalRowStyle.setBorderLeft(BorderStyle.MEDIUM);
@@ -149,8 +144,14 @@ public class ExportController {
 
             CellRangeAddress cellRangeAddress = new CellRangeAddress(totalRow.getRowNum(), totalRow.getRowNum(), 0,2 );
             factureSheet.addMergedRegion(cellRangeAddress);
-            totalRow.createCell(0).setCellValue("TOTAL GENERAL");
-            totalRow.createCell(3).setCellValue(facture.getTotal());
+
+            Cell cell1 = totalRow.createCell(0);
+            cell1.setCellValue("TOTAL GENERAL");
+            cell1.setCellStyle(totalRowStyle);
+
+            Cell cell2 = totalRow.createCell(3);
+            cell2.setCellValue(facture.getTotal());
+            cell2.setCellStyle(totalRowStyle);
             }
         }
         workbook.write(response.getOutputStream());
@@ -183,9 +184,4 @@ public class ExportController {
         workbook.close();
     }
 
-    /*@GetMapping("{id}/factures/xlsx")
-    public void facturesXLSX(@PathVariable Long id, HttpServletRequest request, HttpServletResponse response){
-        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        response.setHeader("Content-Disposition", "attachment; filename=\"clients.xlsx\"");
-    }*/
 }
