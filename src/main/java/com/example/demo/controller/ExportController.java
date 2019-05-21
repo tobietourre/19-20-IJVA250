@@ -6,10 +6,9 @@ import com.example.demo.entity.LigneFacture;
 import com.example.demo.repository.ClientRepository;
 import com.example.demo.repository.FactureRepository;
 import com.example.demo.service.*;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.hssf.util.Region;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -97,17 +96,65 @@ public class ExportController {
     @GetMapping("/factures/xlsx")
     public void facturesXLSX(HttpServletRequest request, HttpServletResponse response) throws IOException{
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        response.setHeader("Content-Disposition", "attachment; filename=\"clients.xlsx\"");
+        response.setHeader("Content-Disposition", "attachment; filename=\"factures.xlsx\"");
 
         Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Factures");
-        Row headerRow = sheet.createRow(0);
-        headerRow.createCell(0).setCellValue("N° facture");
-        headerRow.createCell(1).setCellValue("Montant total");
 
-        List<Facture> allFactures = factureService.findAllFactures();
+        List<Client> allClients = clientService.findAllClients();
 
-        generateFactureWorkbook(response, workbook, sheet, allFactures);
+        //Pour chaque client, création d'une feuille client
+        for (Client client: allClients) {
+            Sheet clientSheet = workbook.createSheet(client.getNom());
+            Row clientRow = clientSheet.createRow(0);
+            clientRow.createCell(0).setCellValue(client.getNom());
+            clientRow.createCell(1).setCellValue(client.getPrenom());
+
+            List<Facture> facturesClient = factureService.findByClientId(client.getId());
+
+            //Pour chaque facture, création d'une feuille facture
+            for (Facture facture: facturesClient) {
+                Set<LigneFacture> ligneFactures = facture.getLigneFactures();
+                Sheet factureSheet = workbook.createSheet("Facture " + facture.getId());
+                Row headerRow = factureSheet.createRow(0);
+                headerRow.createCell(0).setCellValue("Article");
+                headerRow.createCell(1).setCellValue("Quantité");
+                headerRow.createCell(2).setCellValue("Prix unitaire");
+                headerRow.createCell(3).setCellValue("Prix de la ligne");
+
+                //Pour chaque ligne de facture, création d'une ligne
+                for (LigneFacture ligne: ligneFactures) {
+                    Row ligneRow = factureSheet.createRow(factureSheet.getLastRowNum()+1);
+                    ligneRow.createCell(0).setCellValue(ligne.getArticle().getLibelle());
+                    ligneRow.createCell(1).setCellValue(ligne.getQuantite());
+                    ligneRow.createCell(2).setCellValue(ligne.getArticle().getPrix());
+                    ligneRow.createCell(3).setCellValue(ligne.getArticle().getPrix() * ligne.getQuantite());
+                }
+
+            //Ligne de total général de la facture, style gras rouge avec bordure
+            Row totalRow = factureSheet.createRow(factureSheet.getLastRowNum()+1);
+            CellStyle totalRowStyle = totalRow.getRowStyle();
+            totalRowStyle.setBorderBottom(BorderStyle.MEDIUM);
+            totalRowStyle.setBorderRight(BorderStyle.MEDIUM);
+            totalRowStyle.setBorderLeft(BorderStyle.MEDIUM);
+            totalRowStyle.setBorderTop(BorderStyle.MEDIUM);
+            totalRowStyle.setBottomBorderColor(IndexedColors.RED.getIndex());
+            totalRowStyle.setTopBorderColor(IndexedColors.RED.getIndex());
+            totalRowStyle.setLeftBorderColor(IndexedColors.RED.getIndex());
+            totalRowStyle.setRightBorderColor(IndexedColors.RED.getIndex());
+
+            Font font = workbook.createFont();
+            font.setBold(true);
+            font.setColor(IndexedColors.RED.getIndex());
+            totalRowStyle.setFont(font);
+
+            CellRangeAddress cellRangeAddress = new CellRangeAddress(totalRow.getRowNum(), totalRow.getRowNum(), 0,2 );
+            factureSheet.addMergedRegion(cellRangeAddress);
+            totalRow.createCell(0).setCellValue("TOTAL GENERAL");
+            totalRow.createCell(3).setCellValue(facture.getTotal());
+            }
+        }
+        workbook.write(response.getOutputStream());
+        workbook.close();
     }
 
     @GetMapping("/clients/{id}/factures/xlsx")
@@ -133,6 +180,7 @@ public class ExportController {
         }
 
         workbook.write(response.getOutputStream());
+        workbook.close();
     }
 
     /*@GetMapping("{id}/factures/xlsx")
