@@ -109,7 +109,10 @@ public class ExportController {
             for (Facture facture: facturesClient) {
                 Set<LigneFacture> ligneFactures = facture.getLigneFactures();
                 Sheet factureSheet = workbook.createSheet("Facture " + facture.getId());
-                factureSheet.setColumnWidth(15, 20);
+                factureSheet.setColumnWidth(0, 5000);
+                factureSheet.setColumnWidth(1, 5000);
+                factureSheet.setColumnWidth(2, 5000);
+                factureSheet.setColumnWidth(3, 5000);
                 Row headerRow = factureSheet.createRow(0);
                 headerRow.createCell(0).setCellValue("Article");
                 headerRow.createCell(1).setCellValue("Quantité");
